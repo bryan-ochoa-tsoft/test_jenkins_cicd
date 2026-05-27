@@ -11,35 +11,27 @@ pipeline {
             }
         }
 
-        stage('Deploy DEV via Bastion') {
+        stage('Deploy via Bastion') {
             steps {
                 sshagent(['ssh-key-pivote']) {
 
                     sh '''
-                    echo "Deploy DEV..."
+                    echo "Copiando archivo al pivote..."
+                    scp -o StrictHostKeyChecking=no artifact.txt admin@pivote:/home/admin/
 
-                    scp -o ProxyJump=admin@pivote -o StrictHostKeyChecking=no \
-                    artifact.txt admin@dev:/tmp/
+                    echo "Ejecutando despliegue desde pivote..."
 
-                    ssh -J admin@pivote admin@dev \
-                    "cat /tmp/artifact.txt"
-                    '''
-                }
-            }
-        }
-        
-        stage('Deploy PRD via Bastion') {
-            steps {
-                sshagent(['ssh-key-pivote']) {
+                    ssh -o StrictHostKeyChecking=no admin@pivote "
 
-                    sh '''
-                    echo "Deploy PRD..."
+                        echo '→ DEV'
+                        scp /home/admin/artifact.txt admin@dev:/home/admin/
+                        ssh admin@dev 'cat /home/admin/artifact.txt'
 
-                    scp -o ProxyJump=admin@pivote -o StrictHostKeyChecking=no \
-                    artifact.txt admin@prd:/tmp/
+                        echo '→ PRD'
+                        scp /home/admin/artifact.txt admin@prd:/home/admin/
+                        ssh admin@prd 'cat /home/admin/artifact.txt'
 
-                    ssh -J admin@pivote admin@prd \
-                    "cat /tmp/artifact.txt"
+                    "
                     '''
                 }
             }
