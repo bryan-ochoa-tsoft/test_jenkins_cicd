@@ -1,53 +1,48 @@
 pipeline {
     agent any
 
-    triggers {
-        pollSCM('* * * * *')
-    }
-
     stages {
 
-        stage('Checkout') {
-            steps {
-                echo "Obteniendo código desde GitHub..."
-            }
-        }
-
-        stage('Prepare Artifact') {
+        stage('Build') {
             steps {
                 sh '''
-                echo "archivo CI/CD desde Jenkins - build $(date)" > artifact.txt
+                echo "artifact $(date)" > artifact.txt
                 '''
             }
         }
 
-        stage('Deploy to Pivote') {
+        stage('Deploy DEV via Bastion') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'ssh-lab-creds',
-                    usernameVariable: 'USER',
-                    passwordVariable: 'PASS'
-                )]) {
+                sshagent(['ssh-key-pivote']) {
 
                     sh '''
-                    echo "Desplegando en pivote..."
+                    echo "Deploy DEV..."
 
-                    sshpass -p $PASS scp -P 2222 -o StrictHostKeyChecking=no artifact.txt $USER@pivote:/tmp/
+                    scp -o ProxyJump=admin@pivote -o StrictHostKeyChecking=no \
+                    artifact.txt admin@dev:/tmp/
 
-                    sshpass -p $PASS ssh -p 2222 -o StrictHostKeyChecking=no $USER@pivote \
-                    "echo 'Archivo recibido:' && cat /tmp/artifact.txt"
+                    ssh -J admin@pivote admin@dev \
+                    "cat /tmp/artifact.txt"
                     '''
                 }
             }
         }
-    }
+        
+        stage('Deploy PRD via Bastion') {
+            steps {
+                sshagent(['ssh-key-pivote']) {
 
-    post {
-        success {
-            echo "✅ Deploy completado correctamente"
-        }
-        failure {
-            echo "❌ Algo falló en el pipeline"
+                    sh '''
+                    echo "Deploy PRD..."
+
+                    scp -o ProxyJump=admin@pivote -o StrictHostKeyChecking=no \
+                    artifact.txt admin@prd:/tmp/
+
+                    ssh -J admin@pivote admin@prd \
+                    "cat /tmp/artifact.txt"
+                    '''
+                }
+            }
         }
     }
 }
