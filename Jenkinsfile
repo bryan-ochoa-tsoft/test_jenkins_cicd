@@ -2,10 +2,11 @@ pipeline {
     agent any
 
     triggers {
-        pollSCM('* * * * *') // simple polling (luego webhook si quieres)
+        pollSCM('* * * * *')
     }
 
     stages {
+
         stage('Test SSH via Bastion') {
             steps {
                 withCredentials([usernamePassword(
@@ -13,13 +14,14 @@ pipeline {
                     usernameVariable: 'USER',
                     passwordVariable: 'PASS'
                 )]) {
-                    sh """
+
+                    sh '''
                     echo "Probando conexión vía pivote..."
 
-                    sshpass -p $PASS ssh -o StrictHostKeyChecking=no $USER@server_pivote \\
-                    "sshpass -p $PASS ssh -o StrictHostKeyChecking=no $USER@server_final \\
+                    sshpass -p $PASS ssh -p 2222 -o StrictHostKeyChecking=no $USER@pivote \
+                    "sshpass -p $PASS ssh -p 2222 -o StrictHostKeyChecking=no $USER@final \
                     'echo Conectado correctamente al servidor final'"
-                    """
+                    '''
                 }
             }
         }
@@ -32,14 +34,21 @@ pipeline {
                     passwordVariable: 'PASS'
                 )]) {
 
-                    sh """
-                    echo "archivo CI/CD" > test.txt
+                    sh '''
+                    echo "archivo CI/CD desde Jenkins" > test.txt
 
-                    sshpass -p $PASS scp -o StrictHostKeyChecking=no test.txt $USER@pivote:/tmp/
+                    echo "Copiando archivo al pivote..."
+                    sshpass -p $PASS scp -P 2222 -o StrictHostKeyChecking=no test.txt $USER@pivote:/tmp/
 
-                    sshpass -p $PASS ssh -o StrictHostKeyChecking=no $USER@pivote \\
-                    "sshpass -p $PASS scp -o StrictHostKeyChecking=no /tmp/test.txt $USER@final:/tmp/"
-                    """
+                    echo "Copiando archivo desde pivote al servidor final..."
+                    sshpass -p $PASS ssh -p 2222 -o StrictHostKeyChecking=no $USER@pivote \
+                    "sshpass -p $PASS scp -P 2222 -o StrictHostKeyChecking=no /tmp/test.txt $USER@final:/tmp/"
+
+                    echo "Verificando archivo en servidor final..."
+                    sshpass -p $PASS ssh -p 2222 -o StrictHostKeyChecking=no $USER@pivote \
+                    "sshpass -p $PASS ssh -p 2222 -o StrictHostKeyChecking=no $USER@final \
+                    'cat /tmp/test.txt'"
+                    '''
                 }
             }
         }
