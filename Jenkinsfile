@@ -16,8 +16,8 @@ pipeline {
                     sh """
                     echo "Probando conexión vía pivote..."
 
-                    sshpass -p $PASS ssh -o StrictHostKeyChecking=no $USER@pivote \\
-                    "sshpass -p $PASS ssh -o StrictHostKeyChecking=no $USER@final \\
+                    sshpass -p $PASS ssh -o StrictHostKeyChecking=no $USER@server_pivote \\
+                    "sshpass -p $PASS ssh -o StrictHostKeyChecking=no $USER@server_final \\
                     'echo Conectado correctamente al servidor final'"
                     """
                 }
